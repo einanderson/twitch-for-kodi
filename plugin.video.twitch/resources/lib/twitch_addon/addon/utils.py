@@ -407,6 +407,15 @@ def ensure_valid_private_token(force=False):
         access_token = (store.get('access') or '').strip()
         if not refresh_token:
             return access_token
+        # The kimne78 web client is a *confidential* client: its tokens cannot be refreshed
+        # without a client secret we don't have (-> "missing client secret"), but they also
+        # never expire (Twitch /validate reports expires_in=0). Our stored expiry is just the
+        # device-flow expires_in, which lapses while the token stays valid -> attempting a
+        # refresh here only spams a doomed HTTP POST + warning on every API call. So for
+        # kimne78 just use the stored access token. Only a user-supplied *public* private
+        # client (own client id) is actually refreshable.
+        if _private_client_id() == _KIMNE_CLIENT_ID:
+            return access_token
         try:
             expiry = float(store.get('expiry') or 0)
         except (TypeError, ValueError):
