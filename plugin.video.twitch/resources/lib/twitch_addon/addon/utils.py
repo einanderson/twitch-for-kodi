@@ -753,6 +753,31 @@ def convert_duration(duration):
     return payload
 
 
+# Zeichen, die Kodis Standard-Font (Estuary/Noto Sans) nicht rendern kann und als leeres
+# Rechteck ("Tofu") erscheinen — v. a. Emoji/Symbole in Stream-Titeln. Vor der Anzeige rausfiltern.
+_TOFU_RE = re.compile(
+    u'['
+    u'\U0001F000-\U0001FAFF'  # Emoji & Pictogramme (Emoticons, Transport, Symbole & Pictogramme, Flaggen …)
+    u'\U00002600-\U000027BF'  # Misc Symbols + Dingbats (☀ ★ ✓ ✔ ❤ …)
+    u'\U00002B00-\U00002BFF'  # Misc Symbols and Arrows (⭐ …)
+    u'\U000023E9-\U000023FA'  # Media-/Uhr-Emoji aus Misc Technical (⏩ ⏰ …)
+    u'\U0000FE00-\U0000FE0F'  # Variation Selectors (Emoji-Präsentation)
+    u'\U0000200D'             # Zero Width Joiner (Emoji-Sequenzen)
+    u'\U000020E3'             # Combining Enclosing Keycap
+    u']'
+)
+
+
+def strip_tofu(text):
+    # Nicht-renderbare Emoji/Symbole entfernen (sonst Tofu-Rechteck). Nur horizontale
+    # Doppel-Leerzeichen glätten — Zeilenumbrüche bleiben erhalten (wichtig für Plots).
+    if not isinstance(text, str):
+        return text
+    text = _TOFU_RE.sub(u'', text)
+    text = re.sub(u'[ \\t]{2,}', u' ', text)
+    return text
+
+
 class TitleBuilder(object):
     class Templates(object):
         TITLE = u"{title}"
@@ -819,6 +844,7 @@ class TitleBuilder(object):
                 pass
             value = value.replace(u'\r\n', u' ')
             value = value.replace(u'\n', u' ')
+            value = strip_tofu(value)               # Emoji/Symbole entfernen (sonst Tofu-Rechteck)
             value = value.strip()
             return value
         else:
