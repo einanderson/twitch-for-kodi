@@ -1,5 +1,15 @@
 # Twitch for Kodi — community fork
 
+> 🎉 **ARCHIVED — everything here is now upstream.**
+> All features of this fork (OAuth device-code login, Turbo/ad-free login, GQL
+> search, HEVC codec setting, search & tofu fixes, ISA improvements) have been
+> merged into the original addon and released as
+> **[anxdpanic v3.0.3](https://github.com/anxdpanic/plugin.video.twitch/releases/tag/v3.0.3)**
+> (plugin + [library v3.0.3](https://github.com/anxdpanic/script.module.python.twitch/releases/tag/v3.0.3)).
+> **Please use the upstream release** — this repository is archived and will not
+> receive further updates. Thanks to anxdpanic and MrSprigster for reviewing and
+> merging, and to everyone who tested the betas.
+
 > ⚠️ **BETA — experimental, needs testing.**
 > This is a personal fork that has been **tested only on LibreELEC 12.x / Kodi 21
 > (Omega) / Raspberry Pi 4**. It is **untested on any other platform, OS or Kodi
