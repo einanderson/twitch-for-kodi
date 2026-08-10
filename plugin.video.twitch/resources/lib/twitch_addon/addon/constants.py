@@ -41,7 +41,6 @@ MODES = __enum(
     DEVICELOGIN='device_login',
     EDITFOLLOW='edit_user_follows',
     EDITBLOCK='edit_user_blocks',
-    EDITQUALITIES='edit_qualities',
     CLEARLIST='clear_list',
     BROWSE='browse',
     STREAMLIST='stream_list',
@@ -68,8 +67,6 @@ COLORS = 'aliceblue|antiquewhite|aqua|aquamarine|azure|beige|bisque|black|blanch
 
 ICON = kodi.get_icon()
 FANART = kodi.get_fanart()
-
-ADAPTIVE_SOURCE_TEMPLATE = {'id': 'hls', 'name': 'Adaptive', 'bandwidth': -1, 'url': ''}
 
 CLIENT_ID = 'cHMyZWQ5emxqOHp5cXp0c2R6MnRsNHV5czg0Yjhr'
 REDIRECT_URI = 'https://anxdpanic.github.io/plugin.video.twitch/token/'

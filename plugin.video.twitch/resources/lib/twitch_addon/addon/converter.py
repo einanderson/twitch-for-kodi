@@ -13,8 +13,8 @@ from urllib.parse import quote
 
 from . import menu_items
 from .common import kodi
-from .constants import Keys, Images, MODES, ADAPTIVE_SOURCE_TEMPLATE
-from .utils import the_art, TitleBuilder, i18n, get_oauth_token, get_vodcast_color, use_inputstream_adaptive, get_thumbnail_size, get_refresh_stamp, to_string, get_private_oauth_token, convert_duration, filter_qualities, strip_tofu
+from .constants import Keys, Images, MODES
+from .utils import the_art, TitleBuilder, i18n, get_oauth_token, get_vodcast_color, get_thumbnail_size, get_refresh_stamp, to_string, get_private_oauth_token, convert_duration, strip_tofu
 
 
 class PlaylistConverter(object):
@@ -104,11 +104,7 @@ class JsonListItemConverter(object):
         context_menu.extend(menu_items.refresh())
         display_name = to_string(clip.get(Keys.BROADCASTER_NAME))
         context_menu.extend(menu_items.channel_videos(clip[Keys.BROADCASTER_ID], display_name, display_name))
-        context_menu.extend(menu_items.set_default_quality('clip', clip[Keys.BROADCASTER_ID],
-                                                           display_name, clip_id=clip[Keys.ID]))
         context_menu.extend(menu_items.queue())
-        context_menu.extend(menu_items.run_plugin(i18n('play_choose_quality'),
-                                                  {'mode': MODES.PLAY, 'slug': clip[Keys.ID], 'ask': True, 'use_player': True}))
         info = self.get_plot_for_clip(clip)
         info.update({'duration': str(duration), 'year': year, 'date': date, 'premiered': date, 'mediatype': 'video'})
 
@@ -131,12 +127,7 @@ class JsonListItemConverter(object):
         display_name = to_string(video.get(Keys.USER_NAME) if video.get(Keys.USER_NAME) else video.get(Keys.USER_LOGIN))
         channel_name = to_string(video[Keys.USER_LOGIN])
         context_menu.extend(menu_items.channel_videos(video[Keys.USER_ID], channel_name, display_name))
-        context_menu.extend(menu_items.set_default_quality('video', video[Keys.USER_ID],
-                                                           video[Keys.USER_LOGIN], video[Keys.USER_ID]))
         context_menu.extend(menu_items.queue())
-        context_menu.extend(menu_items.run_plugin(i18n('play_choose_quality'),
-                                                  {'mode': MODES.PLAY, 'video_id': video[Keys.ID],
-                                                   'ask': True, 'use_player': True}))
         info = self.get_plot_for_video(video)
         info.update({'duration': str(duration), 'year': year, 'date': date, 'premiered': date, 'mediatype': 'video'})
         return {'label': self.get_title_for_video(video),
@@ -164,12 +155,7 @@ class JsonListItemConverter(object):
         context_menu.extend(menu_items.channel_videos(search[Keys.ID], channel_name, display_name))
         if search[Keys.GAME_NAME]:
             context_menu.extend(menu_items.go_to_game(game_name, search[Keys.GAME_ID]))
-        context_menu.extend(menu_items.set_default_quality('stream', search[Keys.ID],
-                                                           search.get(Keys.BROADCASTER_LOGIN)))
         context_menu.extend(menu_items.queue())
-        context_menu.extend(menu_items.run_plugin(i18n('play_choose_quality'),
-                                                  {'mode': MODES.PLAY, 'channel_id':
-                                                      search[Keys.ID], 'ask': True, 'use_player': True}))
         return {'label': title,
                 'path': kodi.get_plugin_url({'mode': MODES.PLAY, 'channel_id': search[Keys.ID]}),
                 'context_menu': context_menu,
@@ -222,10 +208,7 @@ class JsonListItemConverter(object):
         context_menu.extend(menu_items.channel_videos(stream[Keys.USER_ID], channel_name, display_name))
         if stream[Keys.GAME_NAME]:
             context_menu.extend(menu_items.go_to_game(game_name, stream[Keys.GAME_ID]))
-        context_menu.extend(menu_items.set_default_quality('stream', stream[Keys.USER_ID], stream.get(Keys.USER_LOGIN)))
         context_menu.extend(menu_items.queue())
-        context_menu.extend(menu_items.run_plugin(i18n('play_choose_quality'),
-                                                  {'mode': MODES.PLAY, 'channel_id': stream[Keys.USER_ID], 'ask': True, 'use_player': True}))
         return {'label': title,
                 'path': kodi.get_plugin_url({'mode': MODES.PLAY, 'channel_id': stream[Keys.USER_ID]}),
                 'context_menu': context_menu,
@@ -526,76 +509,6 @@ class JsonListItemConverter(object):
                                     date=date)
 
         return self._clean_info({u'plot': plot, u'plotoutline': plot, u'tagline': _title.rstrip('\r\n')})
-
-    def get_video_for_quality(self, videos, ask=True, quality=None, clip=False):
-        use_ia = use_inputstream_adaptive()
-        if use_ia and not any(v['name'] == 'Adaptive' for v in videos) and not clip:
-            videos.append(ADAPTIVE_SOURCE_TEMPLATE)
-        videos = filter_qualities(videos)  # drop sub-720p variants (keep Source/720p+/audio_only/Adaptive)
-        if ask is True:
-            return self.select_video_for_quality(videos)
-        else:
-            video_quality = kodi.get_setting('video_quality')
-            source = video_quality == '0'
-            ask = video_quality == '1'
-            bandwidth = video_quality == '2'
-            adaptive = video_quality == '3'
-            try:
-                bandwidth_value = int(kodi.get_setting('bandwidth'))
-            except:
-                bandwidth_value = None
-
-            if quality or len(videos) == 1:
-                for video in videos:
-                    if (quality and (quality.lower() in video['name'].lower())) or len(videos) == 1:
-                        return video
-
-            if ask:
-                return self.select_video_for_quality(videos)
-
-            if clip and (bandwidth or adaptive or source):
-                for video in videos:
-                    if 'source' in video['id'].lower():
-                        return video
-
-            if adaptive:
-                for video in videos:
-                    if 'hls' in video['id']:
-                        return video
-
-            elif source and not clip:
-                limit_framerate = int(kodi.get_setting('source_frame_rate_limit'))
-                if limit_framerate >= 30:
-                    adjusted_limit = limit_framerate + 0.999  # use + 0.999 because 30 fps may be > 30 i.e. 30.211
-                    fps_videos = [video for video in videos if video.get('fps') and video['fps'] < adjusted_limit]
-                    if fps_videos:
-                        return fps_videos[0]
-
-                for video in videos:
-                    if 'chunked' in video['id']:
-                        return video
-
-            elif bandwidth and bandwidth_value and not clip:
-                bandwidths = []
-                for video in videos:
-                    bwidth = int(video['bandwidth'])
-                    if bwidth <= bandwidth_value:
-                        bandwidths.append(bwidth)
-                best_match = max(bandwidths)
-                try:
-                    index = next(idx for idx, video in enumerate(videos) if int(video['bandwidth']) == best_match)
-                    return videos[index]
-                except:
-                    pass
-            return self.select_video_for_quality(videos)
-
-    @staticmethod
-    def select_video_for_quality(videos):
-        result = kodi.Dialog().select(i18n('choose_quality'), [video['name'] for video in videos])
-        if result == -1:
-            return None
-        else:
-            return videos[result]
 
     @staticmethod
     def get_thumbnail(thumbnail, default=Images.THUMB):

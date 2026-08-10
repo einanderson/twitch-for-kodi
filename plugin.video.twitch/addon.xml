@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.twitch" version="3.0.3~beta4" name="Twitch" provider-name="anxdpanic, A Talented Community">
+<addon id="plugin.video.twitch" version="4.0.1" name="Twitch" provider-name="anxdpanic, A Talented Community">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
         <import addon="script.module.requests" version="2.9.1"/>
@@ -15,15 +15,22 @@
             <fanart>resources/media/fanart.jpg</fanart>
         </assets>
         <news>
-[fix] Stop futile private (Turbo) token refresh spam for the non-expiring web client
-[fix] Search no longer hangs at "Working..." after stopping playback (issue #1)
-[beta] Community fork - experimental, tested only on LibreELEC / Kodi 21 / Raspberry Pi 4
-[fix] Following Channels
-[lang] updated translations from Weblate
+4.0.1
+[fix] tofu filter: unrenderable emoji/symbols are replaced by a single space instead of being
+dropped, so words no longer get glued together ("WEEKEND[emoji]Type" now stays "WEEKEND Type")
+
+4.0.0
+[note] use the bundled script.module.python.twitch: it is what offers HEVC to Twitch
+[rem] no quality selection any more: live and VOD always play adaptively via InputStream Adaptive
+[upd] live streams and VODs now play exclusively via InputStream Adaptive
+[fix] deterministic 2K/HEVC start with audio on Enhanced-Broadcasting streams
+[fix] random silent starts on all streams (dead muxed audio tracks suppressed, audio_only is the single real audio track)
+[add] master playlist rewrite served via localhost HTTP service (127.0.0.1:48664)
+[rem] legacy quality machinery: preferred/default qualities, quality dialogs, bandwidth/fps limits, IA toggle
         </news>
         <platform>all</platform>
-        <source>https://github.com/anxdpanic/plugin.video.twitch</source>
         <license>GPL-3.0-only</license>
+        <source>https://github.com/einanderson/twitch-for-kodi</source>
         <forum>https://twitchaddon.panicked.xyz/forum</forum>
         <reuselanguageinvoker>true</reuselanguageinvoker>
         <summary lang="ca_ES">Connector de vídeo de Twitch</summary>

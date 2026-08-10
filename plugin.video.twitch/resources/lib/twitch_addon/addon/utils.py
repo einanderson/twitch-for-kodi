@@ -60,38 +60,21 @@ def loose_version(v):
 
 
 def use_inputstream_adaptive():
-    if kodi.get_setting('video_quality_ia') == 'true' or kodi.get_setting('video_quality') == '3':
-        if kodi.get_setting('video_support_ia_builtin') == 'true':
-            return True
-        elif kodi.get_setting('video_support_ia_addon') == 'true':
-            use_ia = kodi.get_setting('video_quality_ia') == 'true' or kodi.get_setting('video_quality') == '3'
-            if not use_ia:
-                return False
-
-            ia_enabled = kodi.addon_enabled('inputstream.adaptive')
-            if ia_enabled is False:
-                if kodi.Dialog().yesno(kodi.get_name(), i18n('adaptive_is_disabled')):
-                    ia_enabled = kodi.set_addon_enabled('inputstream.adaptive')
-
-            if ia_enabled:
-                ia_min_version = '2.0.10'
-                ia_version = kodi.Addon('inputstream.adaptive').getAddonInfo('version')
-                ia_enabled = loose_version(ia_version) >= loose_version(ia_min_version)
-                if not ia_enabled:
-                    result = kodi.Dialog().ok(kodi.get_name(), i18n('adaptive_version_check') % ia_min_version)
-
-            if not ia_enabled:
-                kodi.set_setting('video_quality_ia', 'false')
-                kodi.set_setting('video_quality', '0')
-                return False
-            else:
-                return True
-        else:
-            kodi.set_setting('video_quality_ia', 'false')
-            kodi.set_setting('video_quality', '0')
-            return False
-    else:
+    # InputStream Adaptive is the only supported playback path for live streams and
+    # VODs (clips are plain MP4s); offer to enable it when disabled.
+    ia_enabled = kodi.addon_enabled('inputstream.adaptive')
+    if ia_enabled is False:
+        if kodi.Dialog().yesno(kodi.get_name(), i18n('adaptive_is_disabled')):
+            ia_enabled = kodi.set_addon_enabled('inputstream.adaptive')
+    if not ia_enabled:  # None = not installed
         return False
+
+    ia_min_version = '2.0.10'
+    ia_version = kodi.Addon('inputstream.adaptive').getAddonInfo('version')
+    if loose_version(ia_version) < loose_version(ia_min_version):
+        kodi.Dialog().ok(kodi.get_name(), i18n('adaptive_version_check') % ia_min_version)
+        return False
+    return True
 
 
 def inputstream_adpative_supports(feature):
@@ -116,16 +99,133 @@ def append_headers(headers):
     return '|%s' % format_isa_headers(headers)
 
 
-# Drop sub-720p video variants from a usher quality list; keep Source/720p+/audio_only/Adaptive.
-QUALITY_FLOOR_DROP = ('160p', '360p', '480p')
+# Twitch masters mux the audio into every video variant and additionally offer a separate
+# audio_only variant. The synthetic audio track ISA derives from a muxed variant never
+# delivers samples for the fMP4/HEVC variants and merely duplicates the audio_only track
+# for the TS/H.264 ones -> Kodi's remembered per-file audio index randomly lands on a dead
+# track (silent starts). Enhanced-Broadcasting masters additionally mix one HEVC source
+# into the H.264 transcode ladder; ISA exposes both codecs as separate video streams and
+# Kodi picks by remembered index/manifest order, which Twitch shuffles per request ->
+# random 1080p starts and black screen on manual codec switch.
+#
+# isa_manifest_url() therefore rewrites the master before handing it to ISA:
+#   * audio: keep audio_only as the single real audio track and strip the audio codec
+#     from all video variants (suppresses the dead muxed tracks),
+#   * video: when an HEVC variant >= EB_HEVC_MIN_HEIGHT exists, keep only HEVC video
+#     (deterministic 2K start); otherwise keep the whole H.264 ladder for adaptation.
+# The rewritten master is served via the addon's localhost HTTP service because ISA
+# requires an HTTP status line (local files and direct media playlists both fail).
+EB_HEVC_MIN_HEIGHT = 720  # rare 720p-only HEVC broadcasts should also start on the HEVC track
 
 
-def filter_qualities(videos):
-    if not videos:
-        return videos
-    filtered = [v for v in videos
-                if not any(drop in v.get('name', '').lower() for drop in QUALITY_FLOOR_DROP)]
-    return filtered if filtered else videos  # never return empty -> fall back to original list
+def isa_manifest_url(manifest_url, headers):
+    """Return the localhost URL of a rewritten master playlist, or None to play manifest_url unchanged."""
+    import requests
+    from . import eb_server
+    try:
+        response = requests.get(manifest_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        manifest = response.text
+    except Exception as e:
+        log_utils.log('ISA manifest rewrite: master download failed |%s|' % e, log_utils.LOGWARNING)
+        return None
+
+    def _is_hevc(stream_inf):
+        return 'hev1' in stream_inf or 'hvc1' in stream_inf
+
+    def _is_video(stream_inf):
+        return 'avc1' in stream_inf or _is_hevc(stream_inf)
+
+    def _is_audio_only(stream_inf):
+        return 'mp4a' in stream_inf and not _is_video(stream_inf)
+
+    def _height(stream_inf):
+        match = re.search(r'RESOLUTION=\d+x(\d+)', stream_inf)
+        return int(match.group(1)) if match else 0
+
+    lines = manifest.splitlines()
+    stream_infs = [line for line in lines if line.startswith('#EXT-X-STREAM-INF:')]
+    has_audio_only = any(_is_audio_only(line) for line in stream_infs)
+    hevc_only = any(_is_hevc(line) and _height(line) >= EB_HEVC_MIN_HEIGHT for line in stream_infs)
+    if not has_audio_only and not hevc_only:
+        return None  # nothing to rewrite
+
+    def _keep(stream_inf):
+        if _is_audio_only(stream_inf):
+            return True
+        if hevc_only:
+            return _is_hevc(stream_inf)
+        return _is_video(stream_inf)
+
+    kept = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        # a variant block is [#EXT-X-MEDIA] + #EXT-X-STREAM-INF + URI line
+        block = None
+        if line.startswith('#EXT-X-MEDIA:') and index + 2 < len(lines) and \
+                lines[index + 1].startswith('#EXT-X-STREAM-INF:'):
+            block = (lines[index + 1], 3)
+        elif line.startswith('#EXT-X-STREAM-INF:') and index + 1 < len(lines):
+            block = (line, 2)
+        if block:
+            stream_inf, size = block
+            if _keep(stream_inf):
+                for kept_line in lines[index:index + size]:
+                    if has_audio_only and kept_line.startswith('#EXT-X-STREAM-INF:') and _is_video(kept_line):
+                        kept_line = re.sub(r'(CODECS="[^"]*?),?mp4a\.[0-9.]+([^"]*")', r'\1\2', kept_line)
+                    kept.append(kept_line)
+            index += size
+        else:
+            kept.append(line)
+            index += 1
+
+    if not any(_is_video(line) for line in kept if line.startswith('#EXT-X-STREAM-INF:')):
+        return None  # nothing survived, keep original manifest
+
+    path = os.path.join(xbmcvfs.translatePath('special://temp/'), eb_server.EB_MANIFEST_FILENAME)
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(kept) + '\n')
+    except OSError as e:
+        log_utils.log('ISA manifest rewrite: write failed |%s|' % e, log_utils.LOGWARNING)
+        return None
+
+    local_url = 'http://%s:%d/%s' % (eb_server.EB_HTTP_HOST, eb_server.EB_HTTP_PORT,
+                                     eb_server.EB_MANIFEST_FILENAME)
+    try:
+        import urllib.request
+        request = urllib.request.Request(local_url, method='HEAD')
+        urllib.request.urlopen(request, timeout=2)
+    except Exception as e:
+        log_utils.log('ISA manifest rewrite: local HTTP service unavailable, falling back |%s|' % e,
+                      log_utils.LOGWARNING)
+        return None
+    log_utils.log('ISA manifest rewrite: serving %s master via %s' %
+                  ('HEVC-only' if hevc_only else 'rewritten', local_url), log_utils.LOGDEBUG)
+    return local_url
+
+
+def prepare_adaptive_playback(playback_item, request):
+    """Set the InputStream Adaptive properties for a usher live/vod request on a ListItem
+    and return the final play url (the rewritten master when applicable)."""
+    headers = {k: v for k, v in request['headers'].items() if k != 'verifypeer'}
+    play_url = isa_manifest_url(request['url'], headers) or request['url']
+
+    inputstream_property = 'inputstream'
+    if kodi.get_kodi_version().major < 19:
+        inputstream_property += 'addon'
+    playback_item.setProperty(inputstream_property, 'inputstream.adaptive')
+    playback_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
+    # allow up to Twitch-2K (1440p HEVC) regardless of screen res (ISA "2K"=2048x1080 < 1440p)
+    playback_item.setProperty('inputstream.adaptive.chooser_resolution_max', '1440p')
+    playback_item.setProperty('inputstream.adaptive.chooser_resolution_secure_max', '1440p')
+    isa_headers = format_isa_headers(headers)
+    if isa_headers:
+        playback_item.setProperty('inputstream.adaptive.manifest_headers', isa_headers)
+        playback_item.setProperty('inputstream.adaptive.stream_headers', isa_headers)
+    playback_item.setPath(play_url)
+    return play_url
 
 
 def get_redirect_uri():
@@ -686,43 +786,6 @@ def set_sort(for_type, sort_by, direction, period):
     return True
 
 
-def get_default_quality(content_type, target_id):
-    json_data = get_stored_json()
-    if content_type not in json_data['qualities']:
-        json_data['qualities'][content_type] = []
-    if any(str(target_id) in item for item in json_data['qualities'][content_type]):
-        return next(item for item in json_data['qualities'][content_type] if str(target_id) in item)
-    else:
-        return None
-
-
-def add_default_quality(content_type, target_id, name, quality):
-    json_data = get_stored_json()
-    current_quality = get_default_quality(content_type, target_id)
-    if current_quality:
-        current_quality = current_quality[target_id]['quality']
-        if current_quality.lower() == quality.lower():
-            return False
-        else:
-            index = next(index for index, item in enumerate(json_data['qualities'][content_type]) if str(target_id) in item)
-            del json_data['qualities'][content_type][index]
-    json_data['qualities'][content_type].append({target_id: {'name': name, 'quality': quality}})
-    storage.save(json_data)
-    return True
-
-
-def remove_default_quality(content_type):
-    json_data = get_stored_json()
-    result = kodi.Dialog().select(i18n('remove_default_quality') % content_type,
-                                  ['%s [%s]' % (user[user.keys()[0]]['name'], user[user.keys()[0]]['quality']) for user in json_data['qualities'][content_type]])
-    if result == -1:
-        return None
-    else:
-        result = json_data['qualities'][content_type].pop(result)
-        storage.save(json_data)
-        return result
-
-
 def clear_list(list_type, list_name):
     json_data = get_stored_json()
     if (list_name in json_data) and (list_type in json_data[list_name]):
@@ -764,18 +827,20 @@ _TOFU_RE = re.compile(
     u'\U0000FE00-\U0000FE0F'  # Variation Selectors (Emoji-Präsentation)
     u'\U0000200D'             # Zero Width Joiner (Emoji-Sequenzen)
     u'\U000020E3'             # Combining Enclosing Keycap
-    u']'
+    u']+'
 )
 
 
 def strip_tofu(text):
-    # Nicht-renderbare Emoji/Symbole entfernen (sonst Tofu-Rechteck). Nur horizontale
-    # Doppel-Leerzeichen glätten — Zeilenumbrüche bleiben erhalten (wichtig für Plots).
+    # Nicht-renderbare Emoji/Symbole (sonst Tofu-Rechteck) durch EIN Leerzeichen ersetzen —
+    # ersatzloses Entfernen klebt Wörter zusammen ("WEEKEND<Emoji>Type" -> "WEEKENDType").
+    # Nur horizontale Leerzeichen glätten — Zeilenumbrüche bleiben erhalten (wichtig für Plots).
     if not isinstance(text, str):
         return text
-    text = _TOFU_RE.sub(u'', text)
+    text = _TOFU_RE.sub(u' ', text)
     text = re.sub(u'[ \\t]{2,}', u' ', text)
-    return text
+    text = re.sub(u'[ \\t]*\\n[ \\t]*', u'\n', text)
+    return text.strip()
 
 
 class TitleBuilder(object):

@@ -28,14 +28,8 @@
     </category>
     <!-- General -->
     <category label="30076">
-        <!-- Video Quality -->
-        <setting id="video_quality" type="enum" label="30040" lvalues="30102|30136|30201|30254" default="3"/>
-        <setting id="bandwidth" type="number" label="30201" default="2500000" enable="eq(-1,2)" visible="eq(-1,2)" subsetting="true"/>
-        <setting label="30263" type="slider" id="source_frame_rate_limit" default="0" range="0,30,60" option="int"  enable="eq(-2,0)" visible="eq(-2,0)" subsetting="true"/>
-        <setting id="video_support_ia_builtin" type="bool" label="" visible="false" enable="true" default="false"/>
-        <setting id="video_support_ia_addon" type="bool" label="" visible="false" enable="true" default="false"/>
-        <setting id="video_quality_ia" type="bool" label="30223" default="true" enable="eq(-1,true)|eq(-2,true)"/>
-        <setting id="video_quality_ia_configure" type="action" label="30224" enable="eq(-1,true)+eq(-2,true)" visible="eq(-1,true)+eq(-2,true)" option="close" action="RunPlugin(plugin://$ID/?mode=configure_ia)"/>
+        <!-- Playback: always adaptive via InputStream Adaptive -->
+        <setting id="video_quality_ia_configure" type="action" label="30224" option="close" action="RunPlugin(plugin://$ID/?mode=configure_ia)"/>
         <!-- Title Display -->
         <setting id="title_display" type="enum" label="30045" lvalues="30046|30047|30048|30049|30051|30067|30054" default="0"/>
         <!-- Truncate titles -->
@@ -75,16 +69,6 @@
         <setting id="private_oauth_token" type="text" label="30099" default=""/>
         <setting label="30138" type="lsep"/>
         <setting label="30227" id="revoke_private_token" type="action" action="RunPlugin(plugin://$ID/?mode=revoke_private_token)" option="close"/>
-    </category>
-    <!-- Lists -->
-    <category label="30167">
-        <setting label="30191" id="remove_default_stream_quality" type="action" action="RunPlugin(plugin://$ID/?mode=edit_qualities&amp;remove=true&amp;content_type=stream)"/>
-        <setting label="30192" id="remove_default_video_quality" type="action" action="RunPlugin(plugin://$ID/?mode=edit_qualities&amp;remove=true&amp;content_type=video)"/>
-        <setting label="30193" id="remove_default_clip_quality" type="action" action="RunPlugin(plugin://$ID/?mode=edit_qualities&amp;remove=true&amp;content_type=clip)"/>
-
-        <setting label="30194" id="clear_default_stream_qualities" type="action" action="RunPlugin(plugin://$ID/?mode=clear_list&amp;list_type=stream&amp;list_name=qualities)"/>
-        <setting label="30195" id="clear_default_video_qualities" type="action" action="RunPlugin(plugin://$ID/?mode=clear_list&amp;list_type=video&amp;list_name=qualities)"/>
-        <setting label="30196" id="clear_default_clip_qualities" type="action" action="RunPlugin(plugin://$ID/?mode=clear_list&amp;list_type=clip&amp;list_name=qualities)"/>
     </category>
     <!-- Maintenance -->
     <category label="30243">

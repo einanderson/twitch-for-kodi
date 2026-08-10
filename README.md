@@ -1,19 +1,17 @@
 # Twitch for Kodi — community fork
 
-> 🎉 **ARCHIVED — everything here is now upstream.**
-> All features of this fork (OAuth device-code login, Turbo/ad-free login, GQL
-> search, HEVC codec setting, search & tofu fixes, ISA improvements) have been
-> merged into the original addon and released as
-> **[anxdpanic v3.0.3](https://github.com/anxdpanic/plugin.video.twitch/releases/tag/v3.0.3)**
-> (plugin + [library v3.0.3](https://github.com/anxdpanic/script.module.python.twitch/releases/tag/v3.0.3)).
-> **Please use the upstream release** — this repository is archived and will not
-> receive further updates. Thanks to anxdpanic and MrSprigster for reviewing and
-> merging, and to everyone who tested the betas.
+> ℹ️ **Everything up to v3.0.3 is upstream — this repo continues as a 4.x line.**
+> The 3.x feature set of this fork (OAuth device-code login, Turbo/ad-free login,
+> GQL search, HEVC codec setting, search & tofu fixes, ISA improvements) was merged
+> into the original addon and released as
+> **[anxdpanic v3.0.3](https://github.com/anxdpanic/plugin.video.twitch/releases/tag/v3.0.3)**.
+> **If you want the maintained, general-purpose addon, use upstream.** The 4.x
+> releases here are a personal, opinionated line that trades features for a
+> deterministic playback path — see *Limitations* below before installing.
 
-> ⚠️ **BETA — experimental, needs testing.**
-> This is a personal fork that has been **tested only on LibreELEC 12.x / Kodi 21
-> (Omega) / Raspberry Pi 4**. It is **untested on any other platform, OS or Kodi
-> version** — use at your own risk. Provided as-is and not actively maintained.
+> ⚠️ **Experimental — tested only on LibreELEC 12.x / Kodi 21 (Omega) /
+> Raspberry Pi 4** with InputStream Adaptive 21.5. **Untested on any other
+> platform, OS or Kodi version.** Provided as-is, not actively maintained.
 
 A fork of **anxdpanic**'s Twitch addon for Kodi:
 
@@ -27,11 +25,40 @@ are kept intact.
 
 ## What this fork changes
 
-- **HEVC / up to 2K** playback path (Raspberry Pi 4)
-- **≥720p quality filter** (drops 160/360/480p)
+- **Deterministic 2K/HEVC start, with audio.** Twitch mixes one HEVC source variant
+  into the H.264 transcode ladder and shuffles the variant order per request, so Kodi
+  started sometimes in 1080p, sometimes in 2K, and a manual codec switch ended in a
+  black screen. The addon now rewrites the master playlist before handing it to
+  InputStream Adaptive: if a HEVC variant of 720p or better exists, only HEVC video is
+  kept.
+- **No more random silent starts.** The audio tracks ISA synthesizes from the muxed
+  variants never deliver packets (no child-audio playlist is ever fetched, no
+  "Creating audio stream" appears in the log) — audible sound always comes from the
+  separate `audio_only` variant. `mp4a` is therefore stripped from the CODECS of every
+  video variant, leaving `audio_only` as the single real audio track. This applies to
+  **all** streams, not just HEVC ones.
+- **Adaptive-only playback.** Live streams and VODs always play through InputStream
+  Adaptive; clips remain a direct MP4 at source quality.
 - **OAuth Device Code login + automatic token refresh** (public client, no secret)
 - **GraphQL search backend** (with Helix fallback)
 - Optional **ad-free playback** via a private (Turbo) device login
+
+## Limitations — please read before installing
+
+- **There is no quality selection any more.** Preferred/default quality, the quality
+  dialog, per-channel defaults, bandwidth and frame-rate limits and the "use ISA"
+  toggle were all removed in 4.0.0. Quality is left to InputStream Adaptive (capped at
+  1440p). If you want to pick qualities by hand, use the upstream addon.
+- **The addon runs a small local HTTP service** on `127.0.0.1:48664` while Kodi is
+  running. It serves nothing but the rewritten playlist to ISA on the loopback
+  interface — ISA insists on a real HTTP status line, so a local file or a direct
+  media playlist does not work. If anything in the rewrite fails, playback silently
+  falls back to the unmodified Twitch URL.
+- **Install the bundled library, not just the plugin.** This fork builds on upstream
+  3.0.3, and HEVC is offered to Twitch inside `script.module.python.twitch` — the
+  plugin itself never requests a codec. With a stock library the rewrite finds no HEVC
+  variant and you simply get H.264; the audio fix still applies either way.
+- Tested on one hardware/OS combination only (see the warning at the top).
 
 ## Installation (sideload)
 

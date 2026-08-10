@@ -15,10 +15,19 @@ from ..addon.converter import JsonListItemConverter
 from ..addon.twitch_exceptions import PlaybackFailed, SubRequired, TwitchException
 
 
+def _best_clip(videos):
+    # clip qualities are plain MP4s; 'source' is the original quality
+    for video in videos:
+        if 'source' in video.get('id', '').lower():
+            return video
+    return videos[0] if videos else None
+
+
 def route(api, seek_time=0, channel_id=None, video_id=None, slug=None, ask=False, use_player=False, quality=None, channel_name=None):
+    # ask/quality are accepted for URL compatibility (old favourites/shortcuts) but
+    # ignored: live streams and VODs always play adaptively via InputStream Adaptive.
     converter = JsonListItemConverter(LINE_LENGTH)
     window = kodi.Window(10000)
-    use_ia = utils.use_inputstream_adaptive()
 
     def _reset():
         window.clearProperty(kodi.get_id() + '-_seek')
@@ -37,29 +46,35 @@ def route(api, seek_time=0, channel_id=None, video_id=None, slug=None, ask=False
     def _set_playing():
         window.setProperty(kodi.get_id() + '-twitch_playing', str(True))
 
-    def _set_live(_id, _name, _display_name, _quality):
-        window.setProperty(kodi.get_id() + '-livestream', '%s,%s,%s,%s' % (_id, _name, _display_name, _quality))
+    def _set_live(_id, _name, _display_name):
+        window.setProperty(kodi.get_id() + '-livestream', '%s,%s,%s,%s' % (_id, _name, _display_name, 'Adaptive'))
 
     def _set_seek_time(value):
         window.setProperty(kodi.get_id() + '-seek_time', str(value))
 
+    def _resolve(playback_item, play_url):
+        _set_playing()
+        if use_player:
+            kodi.Player().play(play_url, playback_item)
+        else:
+            kodi.set_resolved_url(playback_item)
+
     try:
         _reset_live()
-        videos = item_dict = name = None
         seek_time = int(seek_time)
-        is_live = False
+
         if video_id:
             seek_id, _seek_time = _get_seek()
             if seek_id == video_id:
                 seek_time = int(_seek_time)
-            restricted = False
-            unrestricted = None
+
             result = api.get_video_by_id(video_id)
             result = result.get(Keys.DATA, [{}])[0]
-
             video_id = result[Keys.ID]
             channel_id = result[Keys.USER_ID]
             channel_name = result[Keys.USER_NAME] if result[Keys.USER_NAME] else result[Keys.USER_LOGIN]
+
+            # subscriber-only VODs: bail out early with a clear message
             try:
                 extra_info = api._get_video_token(video_id)  # NOQA
             except TwitchException:
@@ -84,34 +99,36 @@ def route(api, seek_time=0, channel_id=None, video_id=None, slug=None, ask=False
                         if res in unrestricted:
                             del unrestricted[res]
                     if unrestricted == {}:
-                        restricted = True
-            if not restricted:
-                _videos = api.get_vod(video_id)
-                if unrestricted:
-                    videos = list()
-                    for _video in _videos:
-                        if _video['id'] in list(unrestricted.keys()):
-                            videos.append(_video)
-                else:
-                    videos = _videos
-                item_dict = converter.video_to_playitem(result)
-                if not quality:
-                    quality = utils.get_default_quality('video', channel_id)
-                    if quality:
-                        quality = quality[str(channel_id)]['quality']
-            else:
-                raise SubRequired(channel_name)
+                        raise SubRequired(channel_name)
+
+            _reset()
+            if not utils.use_inputstream_adaptive():
+                raise PlaybackFailed()
+            request = api.video_request(video_id)
+            if not request:
+                raise PlaybackFailed()
+
+            item_dict = converter.video_to_playitem(result)
+            playback_item = kodi.create_item(item_dict, add=False)
+            playback_item.addStreamInfo('video', {})
+            playback_item.addStreamInfo('audio', {'channels': '2'})
+            playback_item.setContentLookup(False)
+            playback_item.setMimeType('application/x-mpegURL')
+            play_url = utils.prepare_adaptive_playback(playback_item, request)
+            log_utils.log('Attempting playback using |%s|' % play_url, log_utils.LOGDEBUG)
+            if seek_time > 0:
+                _set_seek_time(seek_time)
+            _resolve(playback_item, play_url)
+            return
+
         elif channel_id or channel_name:
             if channel_name and not channel_id:
                 result = api.get_user_ids(channel_name)
                 if result:
                     channel_id = result[0]
             if channel_id:
-                if not quality:
-                    quality = utils.get_default_quality('stream', channel_id)
-                    if quality:
-                        quality = quality[str(channel_id)]['quality']
                 id_only = False
+                name = None
                 result = api.get_channel_stream(channel_id)[Keys.DATA]
                 if result:
                     result = result[0]
@@ -130,98 +147,44 @@ def route(api, seek_time=0, channel_id=None, video_id=None, slug=None, ask=False
                             Keys.USER_ID: user.get(Keys.ID),
                         }  # make a dummy result to continue with playback
                 if name:
-                    videos = api.get_live(name)
+                    _reset()
+                    if not utils.use_inputstream_adaptive():
+                        raise PlaybackFailed()
+                    request = api.live_request(name)
+                    if not request:
+                        raise PlaybackFailed()
+
+                    _set_live(channel_id, name, channel_name)
                     item_dict = converter.stream_to_playitem(result, id_only=id_only)
-                    is_live = True
+                    playback_item = kodi.create_item(item_dict, add=False)
+                    playback_item.addStreamInfo('video', {})
+                    playback_item.addStreamInfo('audio', {'channels': '2'})
+                    playback_item.setContentLookup(False)
+                    playback_item.setMimeType('application/x-mpegURL')
+                    play_url = utils.prepare_adaptive_playback(playback_item, request)
+                    log_utils.log('Attempting playback using |%s|' % play_url, log_utils.LOGDEBUG)
+                    _resolve(playback_item, play_url)
+                    return
+
         elif slug:
             result = api.get_clip_by_slug(slug)
             result = result.get(Keys.DATA, [{}])[0]
-
-            channel_id = result[Keys.BROADCASTER_ID]
-            if not quality:
-                quality = utils.get_default_quality('clip', channel_id)
-                if quality:
-                    quality = quality[str(channel_id)]['quality']
             videos = api.get_clip(slug)
-            item_dict = converter.clip_to_playitem(result)
-        _reset()
-        if item_dict and videos:
-            clip = False if slug is None else True
-            result = converter.get_video_for_quality(videos, ask=ask, quality=quality, clip=clip)
-            if result:
-                quality_label = result['name']
-
-                request = None
-                play_url = None
-                if quality_label == 'Adaptive' and use_ia:
-                    if video_id:
-                        request = api.video_request(video_id)
-                    elif is_live:
-                        request = api.live_request(name)
-                    if request:
-                        if kodi.get_kodi_version().major >= 18:
-                            request['headers']['verifypeer'] = 'false'
-                        play_url = request['url']  # headers passed via ISA stream/manifest_headers below
-
-                if not play_url:
-                    play_url = result['url']
-                    if kodi.get_kodi_version().major >= 18:
-                        play_url += '|verifypeer=false'
-
-                if is_live:
-                    _set_live(channel_id, name, channel_name, quality_label)
-                log_utils.log('Attempting playback using quality |%s| @ |%s|' % (quality_label, play_url), log_utils.LOGDEBUG)
-                item_dict['path'] = play_url
+            video = _best_clip(videos)
+            _reset()
+            if video:
+                item_dict = converter.clip_to_playitem(result)
+                item_dict['path'] = video['url']
+                if kodi.get_kodi_version().major >= 18:
+                    item_dict['path'] += '|verifypeer=false'
                 playback_item = kodi.create_item(item_dict, add=False)
-                stream_info = {
-                    'video': {},
-                    'audio': {
-                        'channels': '2'
-                    }
-                }
-                if result:
-                    language = result.get(Keys.CHANNEL, {}).get(Keys.BROADCASTER_LANGUAGE)
-                    if language:
-                        stream_info['audio']['language'] = language
-                playback_item.addStreamInfo('video', stream_info.get('video'))
-                playback_item.addStreamInfo('audio', stream_info.get('audio'))
-                if not clip:
-                    try:
-                        playback_item.setContentLookup(False)
-                        playback_item.setMimeType('application/x-mpegURL')
-                    except AttributeError:
-                        pass
-                elif clip and play_url.endswith('mp4'):
-                    try:
-                        playback_item.setContentLookup(False)
-                        playback_item.setMimeType('video/mp4')
-                    except AttributeError:
-                        pass
-                if quality_label == 'Adaptive' and use_ia:
-                    inputstream_property = 'inputstream'
-                    if kodi.get_kodi_version().major < 19:
-                        inputstream_property += 'addon'
-                    playback_item.setProperty(inputstream_property, 'inputstream.adaptive')
-                    playback_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
-                    # allow up to Twitch-2K (1440p HEVC) regardless of screen res (ISA "2K"=2048x1080 < 1440p)
-                    playback_item.setProperty('inputstream.adaptive.chooser_resolution_max', '1440p')
-                    playback_item.setProperty('inputstream.adaptive.chooser_resolution_secure_max', '1440p')
-                    if request:
-                        isa_headers = utils.format_isa_headers(
-                            {k: v for k, v in request['headers'].items() if k != 'verifypeer'})
-                        if isa_headers:
-                            playback_item.setProperty('inputstream.adaptive.manifest_headers', isa_headers)
-                            playback_item.setProperty('inputstream.adaptive.stream_headers', isa_headers)
-                if (seek_time > 0) and video_id:
-                    _set_seek_time(seek_time)
-                _set_playing()
-                if use_player:
-                    kodi.Player().play(item_dict['path'], playback_item)
-                else:
-                    kodi.set_resolved_url(playback_item)
-                return
-            else:
-                kodi.set_resolved_url(kodi.ListItem(), succeeded=False)
+                playback_item.addStreamInfo('video', {})
+                playback_item.addStreamInfo('audio', {'channels': '2'})
+                if video['url'].endswith('mp4'):
+                    playback_item.setContentLookup(False)
+                    playback_item.setMimeType('video/mp4')
+                log_utils.log('Attempting clip playback using quality |%s| @ |%s|' % (video['name'], video['url']), log_utils.LOGDEBUG)
+                _resolve(playback_item, item_dict['path'])
                 return
 
         raise PlaybackFailed()

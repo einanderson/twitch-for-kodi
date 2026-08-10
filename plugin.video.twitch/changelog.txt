@@ -1,3 +1,27 @@
+4.0.1 (2026-08-07)
+[fix] tofu filter now replaces unrenderable emoji/symbols with a single space instead of dropping them
+    - dropping them glued words together ("WEEKEND[emoji]Type" became "WEEKENDType"); reported by
+      kuraikaze in fork issue #2
+    - runs of emoji collapse to one space, whitespace around line breaks is cleaned up and the
+      result is trimmed; line breaks themselves are still kept (matters for plots)
+
+4.0.0 (2026-07-08)
+[upd] live streams and VODs now play exclusively via InputStream Adaptive; clips remain direct MP4 at source quality
+[fix] deterministic 2K/HEVC start with audio on Enhanced-Broadcasting streams
+    - Twitch mixes one HEVC source variant into the H.264 transcode ladder and shuffles the variant
+      order per request; Kodi restored remembered per-file stream indexes -> random 1080p starts,
+      silent starts and black screen on manual codec switch
+[fix] random silent starts on ALL streams: the audio tracks ISA synthesizes from muxed variants never
+    deliver samples - the separate audio_only variant is now the single real audio track
+[add] master playlist rewrite (HEVC-only video for HEVC >= 720p, single audio track) served to ISA via
+    a localhost HTTP service (127.0.0.1:48664); falls back to the unmodified master URL on any error
+[fix] Turbo (private) token refresh spam for the non-expiring web client stopped
+[fix] search no longer hangs at "Working..." after stopping playback
+[fix] emoji/symbols Kodi's font cannot render are stripped from titles/plots (tofu boxes)
+[rem] legacy quality machinery: preferred/default qualities per channel, quality dialogs and context
+    menus, bandwidth/fps-limit settings, InputStream Adaptive toggle, Lists settings category
+[rem] IRC chat integration
+
 3.0.2.7
 [add] OAuth device-code login with automatic background token refresh (Settings -> "Login (device code)")
 [fix] auto-refresh losing the rotating refresh token under Kodi's multi-process settings race ("Invalid refresh token")

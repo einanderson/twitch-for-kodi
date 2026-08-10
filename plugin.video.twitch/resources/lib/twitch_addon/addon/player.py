@@ -59,7 +59,10 @@ class TwitchPlayer(xbmc.Player):
             self.window.clearProperty(key=self.player_keys[k])
 
     def onPlayBackStarted(self):
-        twitch_host_matches = ['jtvnw.', 'ttvnw.', 'twitch.tv']
+        from . import eb_server
+        # rewritten masters play from the addon's localhost HTTP service
+        local_manifest = '127.0.0.1:%d' % eb_server.EB_HTTP_PORT
+        twitch_host_matches = ['jtvnw.', 'ttvnw.', 'twitch.tv', local_manifest]
         is_playing = self.window.getProperty(key=self.player_keys['twitch_playing']) == 'True'
         seek_time = self.window.getProperty(key=self.seek_keys['seek_time'])
         if is_playing:
@@ -126,42 +129,20 @@ class TwitchPlayer(xbmc.Player):
                                     except:
                                         pass
                                     twitch = api.Twitch()
-                                    videos = twitch.get_live(name)
                                     result = twitch.get_channel_stream(channel_id).get(Keys.DATA, [{}])
                                     result = result[0]
-                                    item_dict = converter.stream_to_playitem(result)
-                                    video = converter.get_video_for_quality(videos, ask=False, quality=quality)
-                                    if video:
-                                        log_utils.log('Attempting playback using quality |%s| @ |%s|' %
-                                                      (video['name'], video['url']), log_utils.LOGDEBUG)
-                                        item_dict['path'] = video['url']
-                                        if video['name'] == 'Adaptive':
-                                            request = twitch.live_request(name)
-                                            if request:
-                                                if kodi.get_kodi_version().major >= 18:
-                                                    request['headers']['verifypeer'] = 'false'
-                                                item_dict['path'] = request['url']  # headers via ISA props below
+                                    request = twitch.live_request(name)
+                                    if request:
+                                        item_dict = converter.stream_to_playitem(result)
                                         playback_item = kodi.create_item(item_dict, add=False)
-                                        if video['name'] == 'Adaptive':
-                                            inputstream_property = 'inputstream'
-                                            if kodi.get_kodi_version().major < 19:
-                                                inputstream_property += 'addon'
-                                            playback_item.setProperty(inputstream_property, 'inputstream.adaptive')
-                                            playback_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
-                                            playback_item.setProperty('inputstream.adaptive.chooser_resolution_max', '1440p')
-                                            playback_item.setProperty('inputstream.adaptive.chooser_resolution_secure_max', '1440p')
-                                            if request:
-                                                isa_headers = utils.format_isa_headers(
-                                                    {k: v for k, v in request['headers'].items() if k != 'verifypeer'})
-                                                if isa_headers:
-                                                    playback_item.setProperty('inputstream.adaptive.manifest_headers', isa_headers)
-                                                    playback_item.setProperty('inputstream.adaptive.stream_headers', isa_headers)
-
+                                        play_url = utils.prepare_adaptive_playback(playback_item, request)
+                                        log_utils.log('Attempting playback using |%s|' % play_url,
+                                                      log_utils.LOGDEBUG)
                                         stream_name = display_name or name
                                         self.window.setProperty(self.reconnect_keys['stream'],
                                                                 '{0},{1},{2},{3}'.format(channel_id, name,
                                                                                          stream_name, quality))
-                                        self.play(item_dict['path'], playback_item)
+                                        self.play(play_url, playback_item)
                                         break
                                 except:
                                     log_utils.log('Player: |Reconnection| Failed attempt |{0}|'.format(retries),

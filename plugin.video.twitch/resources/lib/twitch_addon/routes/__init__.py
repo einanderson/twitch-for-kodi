@@ -11,7 +11,7 @@
 
 __all__ = ['browse', 'channel_video_categories', 'channel_videos', 'clear_list',
            'clear_search_history', 'clips', 'configure_inputstream_adaptive', 'device_login', 'device_login_private',
-           'edit_languages', 'edit_qualities', 'edit_sorting',
+           'edit_languages', 'edit_sorting',
            'edit_user_follows', 'popular_streams', 'followed', 'following',
            'game_categories', 'game_streams', 'games', 'main',
            'maintain', 'new_search', 'play', 'refresh', 'remove_search_history',

@@ -150,13 +150,6 @@ def _edit_user_follows(channel_id=None, channel_name=None, game_id=None, game_na
     edit_user_follows.route(twitch_api, channel_id, channel_name, game_id, game_name, follow)
 
 
-@dispatcher.register(MODES.EDITQUALITIES, args=['content_type'], kwargs=['video_id', 'target_id', 'name', 'remove', 'clip_id'])
-@error_handler
-def _edit_qualities(content_type, target_id=None, name=None, video_id=None, remove=False, clip_id=None):
-    from .routes import edit_qualities
-    edit_qualities.route(twitch_api, content_type, target_id, name, video_id, remove, clip_id)
-
-
 @dispatcher.register(MODES.EDITSORTING, args=['list_type', 'sort_type'])
 @error_handler
 def _edit_sorting(list_type, sort_type):

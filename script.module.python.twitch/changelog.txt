@@ -1,3 +1,11 @@
+4.0.0 (2026-08-07)
+[upd] version line moved to 4.x so this fork always outranks the upstream 3.0.3 release
+      (the plugin has been on 4.x since 2026-07-08)
+[fix] followed games returned nothing: the hardcoded persisted-query
+    sha256 hash in api/helix/games.py::_get_followed is no longer known to Twitch
+    (PersistedQueryNotFound). The full GraphQL query document is sent instead; the batched
+    request/response shape is unchanged, so the plugin side needs no change.
+
 3.0.2.1
 [add] offer HEVC to Twitch (supported_codecs=h265,h264) so devices with H.265 decoding can play HEVC/2K streams (refs #699, #700)
 
