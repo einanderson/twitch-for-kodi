@@ -264,33 +264,6 @@ class Twitch:
         return self.error_check(results)
 
     @api_error_handler
-    def check_follow(self, channel_id):
-        user_id = self.get_user_id()
-        results = self.api.users.get_follows(from_id=user_id, to_id=channel_id)
-        results = self.error_check(results)
-        return results.get('total') == 1
-
-    @api_error_handler
-    def follow(self, channel_id):
-        results = self.api.users._follow_channel(channel_id=channel_id, headers=self.get_private_credential_headers())  # NOQA
-        return self.error_check(results, private=True)
-
-    @api_error_handler
-    def unfollow(self, channel_id):
-        results = self.api.users._unfollow_channel(channel_id=channel_id, headers=self.get_private_credential_headers())  # NOQA
-        return self.error_check(results, private=True)
-
-    @api_error_handler
-    def follow_game(self, game_id):
-        results = self.api.games._follow(game_id=game_id, headers=self.get_private_credential_headers())  # NOQA
-        return self.error_check(results, private=True)
-
-    @api_error_handler
-    def unfollow_game(self, game_id):
-        results = self.api.games._unfollow(game_id=game_id, headers=self.get_private_credential_headers())  # NOQA
-        return self.error_check(results, private=True)
-
-    @api_error_handler
     def check_subscribed(self, channel_id):
         user_id = self.get_user_id()
         results = self.api.subscriptions.get_user_subscriptions(broadcaster_id=channel_id, user_id=user_id)
@@ -320,16 +293,6 @@ class Twitch:
     @cache.cache_method(cache_limit=cache.limit)
     def get_channel_stream(self, channel_id):
         results = self.api.streams.get_streams(user_id=channel_id)
-        return self.error_check(results)
-
-    @api_error_handler
-    @cache.cache_method(cache_limit=cache.limit)
-    def get_streams_by_channels(self, names, offset, limit):
-        query = self.queries.ApiQuery('streams')
-        query.add_param('offset', offset)
-        query.add_param('limit', limit)
-        query.add_param('channel', names)
-        results = query.execute()
         return self.error_check(results)
 
     @api_error_handler

@@ -174,9 +174,7 @@ def route(api, seek_time=0, channel_id=None, video_id=None, slug=None, ask=False
             _reset()
             if video:
                 item_dict = converter.clip_to_playitem(result)
-                item_dict['path'] = video['url']
-                if kodi.get_kodi_version().major >= 18:
-                    item_dict['path'] += '|verifypeer=false'
+                item_dict['path'] = video['url'] + '|verifypeer=false'
                 playback_item = kodi.create_item(item_dict, add=False)
                 playback_item.addStreamInfo('video', {})
                 playback_item.addStreamInfo('audio', {'channels': '2'})

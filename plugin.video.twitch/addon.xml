@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.twitch" version="4.0.2" name="Twitch" provider-name="anxdpanic, A Talented Community">
+<addon id="plugin.video.twitch" version="4.0.3" name="Twitch" provider-name="anxdpanic, A Talented Community">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
         <import addon="script.module.requests" version="2.9.1"/>
@@ -15,6 +15,14 @@
             <fanart>resources/media/fanart.jpg</fanart>
         </assets>
         <news>
+4.0.3
+[rem] follow/unfollow removed: the context menu entries were never wired up and Twitch
+blocks the requests anyway (IntegrityCheckFailed); the user:edit:follows scope is gone with them
+[fix] the deprecated "manifest_type" property is no longer sent to InputStream Adaptive 21+
+(Kodi 22 removes it entirely); older versions still get it
+[rem] dead code: a Kraken/API-v5 call, unregistered menu modes, branches for Kodi versions
+below the required one, and 31 unused text ids
+
 4.0.2
 [fix] the add-on no longer erases the Client-ID you configured (upstream issue #712)
 [fix] changing the Client-ID now discards the old token immediately, so the order of

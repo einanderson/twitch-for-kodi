@@ -53,16 +53,6 @@ def refresh():
     return [(i18n('refresh'), 'RunScript(%s)' % Scripts.REFRESH)]
 
 
-def edit_follow(channel_id, display_name):
-    return run_plugin(i18n('toggle_follow'), {'mode': MODES.EDITFOLLOW, 'channel_id': channel_id, 'channel_name': display_name})
-
-
-def edit_follow_game(game_id, game_name, follow=True):
-    if follow:
-        return run_plugin(i18n('Follow'), {'mode': MODES.EDITFOLLOW, 'game_id': game_id, 'game_name': game_name, 'follow': True})
-    else:
-        return run_plugin(i18n('Unfollow'), {'mode': MODES.EDITFOLLOW, 'game_id': game_id, 'game_name': game_name, 'follow': False})
-
 
 def change_sort_by(for_type):
     return run_plugin(i18n('change_sort_by'), {'mode': MODES.EDITSORTING, 'list_type': for_type, 'sort_type': 'by'})

@@ -578,7 +578,4 @@ class CountdownDialog(object):
 
 class ListItem(xbmcgui.ListItem):
     def setArt(self, dictionary):
-        if get_kodi_version().major < 16 and 'icon' in dictionary:
-            self.setIconImage(dictionary['icon'])
-            del dictionary['icon']
         super(ListItem, self).setArt(dictionary)

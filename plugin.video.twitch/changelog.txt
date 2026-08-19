@@ -1,3 +1,19 @@
+4.0.3 (2026-08-19)
+[rem] follow/unfollow removed - dead in three ways
+    - the context menu entries were never attached to any list item
+    - check_follow() called get_follows(from_id=, to_id=), parameters the library does not
+      have - a TypeError before any request; Twitch removed that Helix endpoint in 2023
+    - follow/unfollow use GQL mutations that Twitch answers with IntegrityCheckFailed
+    - the user:edit:follows scope went with them; reading the followed lists is untouched
+[fix] "inputstream.adaptive.manifest_type" is only sent to InputStream Adaptive below 21
+    - ISA 21 detects the type itself and warns on every playback, Kodi 22 drops the property
+    - detection uses the manifest content type, which the addon's localhost service sends
+[rem] further dead code
+    - get_streams_by_channels(), unused and aimed at the Kraken base url (API v5, off since 2022)
+    - the unregistered menu modes CHANNELS and EDITBLOCK
+    - branches for Kodi versions below the required one (the addon needs Kodi 20)
+    - 31 text ids nothing referenced any more
+
 4.0.2 (2026-08-19)
 [fix] the add-on no longer erases the Client-ID you configured (upstream issue #712)
     - valid_token() compared the token's Client-ID with the configured one and, on a mismatch,

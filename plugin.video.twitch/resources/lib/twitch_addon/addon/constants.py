@@ -24,7 +24,6 @@ MODES = __enum(
     MAIN='main',
     FEATUREDSTREAMS='featured_streams',
     GAMES='games',
-    CHANNELS='channels',
     FOLLOWING='following',
     SEARCH='search',
     NEWSEARCH='new_search',
@@ -39,8 +38,6 @@ MODES = __enum(
     REVOKEPRIVATETOKEN='revoke_private_token',
     PLAY='play',
     DEVICELOGIN='device_login',
-    EDITFOLLOW='edit_user_follows',
-    EDITBLOCK='edit_user_blocks',
     CLEARLIST='clear_list',
     BROWSE='browse',
     STREAMLIST='stream_list',
@@ -200,5 +197,5 @@ class Scripts:
     REFRESH = 'special://home/addons/plugin.video.twitch/resources/lib/twitch_addon/refresh.py'
 
 
-SCOPES = [scopes.user_read_follows, scopes.user_edit_follows, scopes.user_read_subscriptions,
+SCOPES = [scopes.user_read_follows, scopes.user_read_subscriptions,
           scopes.chat_read, scopes.chat_edit]

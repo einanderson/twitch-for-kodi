@@ -87,6 +87,12 @@ def inputstream_adpative_supports(feature):
         if loose_version(ia_version) >= loose_version('2.4.6'):
             return True
 
+    # Kodi 21 detects the manifest type itself and warns that the property is deprecated;
+    # Kodi 22 drops it entirely. Older versions still need it, so it is set conditionally.
+    if feature == 'MANIFEST_TYPE_DETECTION':
+        if loose_version(ia_version) >= loose_version('21.0.0'):
+            return True
+
     return False
 
 
@@ -213,10 +219,9 @@ def prepare_adaptive_playback(playback_item, request):
     play_url = isa_manifest_url(request['url'], headers) or request['url']
 
     inputstream_property = 'inputstream'
-    if kodi.get_kodi_version().major < 19:
-        inputstream_property += 'addon'
-    playback_item.setProperty(inputstream_property, 'inputstream.adaptive')
-    playback_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
+    playback_item.setProperty('inputstream', 'inputstream.adaptive')
+    if not inputstream_adpative_supports('MANIFEST_TYPE_DETECTION'):
+        playback_item.setProperty('inputstream.adaptive.manifest_type', 'hls')
     # allow up to Twitch-2K (1440p HEVC) regardless of screen res (ISA "2K"=2048x1080 < 1440p)
     playback_item.setProperty('inputstream.adaptive.chooser_resolution_max', '1440p')
     playback_item.setProperty('inputstream.adaptive.chooser_resolution_secure_max', '1440p')
