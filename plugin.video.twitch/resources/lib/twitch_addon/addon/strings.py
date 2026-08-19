@@ -140,6 +140,7 @@ STRINGS = {
     'login_cancelled': 30308,
     'login_expired': 30309,
     'login_denied': 30310,
+    'oauth_refresh_needs_public_client': 30316,
     'waiting_confirmation': 30311,
     'login_success': 30312,
     'login_failed': 30313,

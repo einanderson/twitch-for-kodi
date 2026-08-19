@@ -1066,6 +1066,10 @@ msgctxt "#30315"
 msgid "Turbo / ad-free login successful![CR]The token is now renewed automatically. Ad-free only applies if the logged-in account has Turbo/subscription."
 msgstr ""
 
+msgctxt "#30316"
+msgid "Automatic token refresh needs a public Client-ID.[CR]Register your own application (Public type) at dev.twitch.tv/console/apps and set its Client-ID in the add-on settings."
+msgstr ""
+
 msgctxt "#30330"
 msgid "Search method"
 msgstr ""

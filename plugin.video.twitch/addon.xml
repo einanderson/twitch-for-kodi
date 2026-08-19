@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.twitch" version="4.0.1" name="Twitch" provider-name="anxdpanic, A Talented Community">
+<addon id="plugin.video.twitch" version="4.0.2" name="Twitch" provider-name="anxdpanic, A Talented Community">
     <requires>
         <import addon="xbmc.python" version="3.0.1"/>
         <import addon="script.module.requests" version="2.9.1"/>
@@ -15,6 +15,13 @@
             <fanart>resources/media/fanart.jpg</fanart>
         </assets>
         <news>
+4.0.2
+[fix] the add-on no longer erases the Client-ID you configured (upstream issue #712)
+[fix] changing the Client-ID now discards the old token immediately, so the order of
+"log in" and "enter your Client-ID" no longer matters
+[add] a Client-ID that cannot refresh tokens is detected once and explained, instead of
+retrying forever in the background
+
 4.0.1
 [fix] tofu filter: unrenderable emoji/symbols are replaced by a single space instead of being
 dropped, so words no longer get glued together ("WEEKEND[emoji]Type" now stays "WEEKEND Type")

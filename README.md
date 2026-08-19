@@ -92,10 +92,14 @@ Twitch application** (the bundled upstream client cannot refresh tokens):
    Client Type: **Public** (so no client secret is needed; this enables the OAuth
    Device Code flow).
 3. Copy the **Client ID**.
-4. In Kodi: *Twitch → Settings → Login* and paste it into **OAuth Client ID**
+4. In Kodi: *Twitch → Settings → Developer* and paste it into **OAuth Client ID**
    (`oauth_clientid`).
-5. Use **Login (Device Code)** and follow the on-screen code at
-   <https://www.twitch.tv/activate>.
+5. *Twitch → Settings → Login* → **Login (Device Code)**, then follow the on-screen
+   code at <https://www.twitch.tv/activate>.
+
+Since 4.0.2 the order of steps 4 and 5 no longer matters: changing the Client ID
+discards any token issued for the previous one, so you are simply asked to log in
+again. Earlier versions could get stuck in a loop here (upstream issue #712).
 
 **The login is required for the addon to work at all — not just for playback.**
 Twitch's Helix API needs an OAuth token on *every* request; with only a Client-ID

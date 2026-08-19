@@ -1,3 +1,18 @@
+4.0.2 (2026-08-19)
+[fix] the add-on no longer erases the Client-ID you configured (upstream issue #712)
+    - valid_token() compared the token's Client-ID with the configured one and, on a mismatch,
+      cleared the setting -- dropping you back to the bundled Client-ID, which is confidential
+      and cannot refresh, so every new login died again about an hour later
+    - the stale token is discarded instead; your Client-ID is left alone
+[fix] changing the Client-ID discards the stored token right away
+    - a token is only valid for the Client-ID it was issued for, so entering a Client-ID after
+      logging in used to leave a stale token behind that only surfaced later as a
+      "Client id mismatch" dialog; the order of the two steps no longer matters
+[add] confidential Client-IDs are detected and explained once
+    - if Twitch answers "missing client secret" the Client-ID is remembered as unable to refresh,
+      so the add-on stops retrying, and a notification explains how to register a public app
+    - configuring a different Client-ID re-enables automatic refresh by itself
+
 4.0.1 (2026-08-07)
 [fix] tofu filter now replaces unrenderable emoji/symbols with a single space instead of dropping them
     - dropping them glued words together ("WEEKEND[emoji]Type" became "WEEKENDType"); reported by

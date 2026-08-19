@@ -5,6 +5,7 @@
         <setting label="30300" id="device_login" type="action" action="RunPlugin(plugin://$ID/?mode=device_login)" option="close"/>
         <setting id="oauth_refresh_token" type="text" label="" visible="false" default=""/>
         <setting id="oauth_token_expiry" type="text" label="" visible="false" default="0"/>
+        <setting id="oauth_refresh_unsupported" type="text" label="" visible="false" default=""/>
         <setting id="oauth_token_helix" type="text" label="30099" default=""/>
         <setting label="30138" type="lsep"/>
         <setting label="30227" id="revoke_token" type="action" action="RunPlugin(plugin://$ID/?mode=revoke_token)" option="close"/>

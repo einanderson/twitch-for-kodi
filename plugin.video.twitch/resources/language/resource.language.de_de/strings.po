@@ -1064,3 +1064,7 @@ msgstr "Mit deinem [B]Turbo/Sub-Konto[/B] öffnen:  [B]%s[/B][CR][CR]Code:  [B]%
 msgctxt "#30315"
 msgid "Turbo / ad-free login successful![CR]The token is now renewed automatically. Ad-free only applies if the logged-in account has Turbo/subscription."
 msgstr "Turbo/Werbefrei-Login erfolgreich![CR]Der Token wird ab jetzt automatisch erneuert. Werbefrei greift nur, wenn das angemeldete Konto Turbo/Abonnent ist."
+
+msgctxt "#30316"
+msgid "Automatic token refresh needs a public Client-ID.[CR]Register your own application (Public type) at dev.twitch.tv/console/apps and set its Client-ID in the add-on settings."
+msgstr "Automatische Token-Erneuerung braucht eine öffentliche Client-ID.[CR]Registriere unter dev.twitch.tv/console/apps eine eigene Anwendung (Typ öffentlich/Public) und trage deren Client-ID in den Addon-Einstellungen ein."

@@ -86,27 +86,28 @@ class Twitch:
                 else:
                     return False
             else:
-                matches_default = token_check['client_id'] == utils.get_client_id(default=True)
-                log_utils.log('Error: OAuth Client-ID mismatch', log_utils.LOGERROR)
-                if matches_default:
-                    _ = kodi.Dialog().ok(
-                        i18n('oauth_token'),
-                        '[CR]'.join([i18n('client_id_mismatch'), i18n('ok_to_resolve')])
-                    )
-                    utils.clear_client_id()
-                    self.client_id = utils.get_client_id(default=True)
-                    self.queries.CLIENT_ID = self.client_id
-                    self.client = oauth.clients.MobileClient(self.client_id, self.client_secret)
-                else:
-                    _ = kodi.Dialog().ok(
-                        i18n('oauth_token'),
-                        '[CR]'.join([
-                            i18n('client_id_mismatch'),
-                            i18n('get_new_oauth_token') %
-                            (i18n('settings'), i18n('login'), i18n('get_oauth_token'))
-                        ])
-                    )
-                    return False
+                # The stored token belongs to a different Client-ID than the configured one. The
+                # configured Client-ID is the user's deliberate setting, so the stale token is what
+                # has to go -- discard it and ask for a new login.
+                #
+                # Do NOT clear the configured Client-ID here (as this used to do when the token
+                # matched the bundled one). Logging in first and entering an own Client-ID
+                # afterwards lands exactly in this branch: clearing the setting sent the user back
+                # to the bundled Client-ID, which is confidential and cannot refresh, so every
+                # subsequent login died again an hour later -- and re-entering the Client-ID
+                # triggered the very same wipe. See upstream issue #712.
+                log_utils.log('Error: OAuth Client-ID mismatch, discarding the stored token',
+                              log_utils.LOGERROR)
+                utils.clear_oauth_tokens()
+                _ = kodi.Dialog().ok(
+                    i18n('oauth_token'),
+                    '[CR]'.join([
+                        i18n('client_id_mismatch'),
+                        i18n('get_new_oauth_token') %
+                        (i18n('settings'), i18n('login'), i18n('login_device_code'))
+                    ])
+                )
+                return False
 
     @cache.cache_method(cache_limit=1)
     def valid_private_token(self, client_id, token):  # client_id used for unique caching only
